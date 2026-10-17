@@ -1,0 +1,18 @@
+[
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "baseUrl": "https://api.deepseek.com",
+    "active": true,
+    "apiKeyRef": "provider-a",
+    "authHeader": "Authorization",
+    "authScheme": "Bearer",
+    "routes": {
+      "/api/chat": "/chat/completions",
+      "/api/tags": "/models",
+      "/api/show": "/show",
+      "/api/version": "/version",
+      "/api/ps": "/ps"
+    }
+  }
+]

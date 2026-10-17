@@ -1,0 +1,8 @@
+[
+  {
+    "providerId": "provider-a",
+    "localName": "model-a",
+    "remoteName": "provider-a-model-v1",
+    "active": true
+  }
+]

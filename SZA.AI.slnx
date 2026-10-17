@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="SZA.AI.CLI/SZA.AI.CLI.csproj" />
+  <Project Path="SZA.AI.Proxy/SZA.AI.Proxy.csproj" Id="fcfe5116-1e1f-48d5-a655-5b5aaf6a7f05" />
+</Solution>

@@ -1,0 +1,6 @@
+@SZA.AI.Proxy_HostAddress = http://localhost:5245
+
+GET {{SZA.AI.Proxy_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
