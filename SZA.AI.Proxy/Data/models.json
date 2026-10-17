@@ -1,8 +1,9 @@
 [
   {
-    "providerId": "provider-a",
-    "localName": "model-a",
-    "remoteName": "provider-a-model-v1",
-    "active": true
+    "providerId": "deepseek",
+    "localName": "deepseek-v4-flash-vision-exp",
+    "remoteName": "deepseek-v4-flash-vision-exp",
+    "active": true,
+    "supportsVision": true
   }
 ]

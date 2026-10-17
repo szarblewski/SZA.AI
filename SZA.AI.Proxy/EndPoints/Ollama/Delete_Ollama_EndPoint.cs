@@ -6,7 +6,7 @@ namespace SZA.AI.Proxy.EndPoints.Ollama
     {
         public static void Map(IEndpointRouteBuilder app)
         {
-            app.MapDelete("/api/delete", () => Results.NoContent()).WithOpenApi();
+            app.MapDelete("/delete", () => Results.NoContent());
         }
     
     }

@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
 using SZA.AI.Proxy.Converters;
+using SZA.AI.Proxy.Helpers;
 using SZA.AI.Proxy.Models;
 using SZA.AI.Proxy.Services;
 
@@ -15,6 +16,7 @@ namespace SZA.AI.Proxy.Providers
         private readonly IProvider_Registry _providers;
         private readonly IModel_Registry _models;
         private readonly ISecret_Store _secrets;
+        private readonly IImage_Describer _imageDescriber;
         private readonly ILogger<Provider_Client> _logger;
 
         public Provider_Client(
@@ -22,12 +24,14 @@ namespace SZA.AI.Proxy.Providers
             IProvider_Registry providers,
             IModel_Registry models,
             ISecret_Store secrets,
+            IImage_Describer imageDescriber,
             ILogger<Provider_Client> logger)
         {
             _httpClientFactory = httpClientFactory;
             _providers = providers;
             _models = models;
             _secrets = secrets;
+            _imageDescriber = imageDescriber;
             _logger = logger;
         }
 
@@ -43,7 +47,7 @@ namespace SZA.AI.Proxy.Providers
                 return;
             }
 
-            var url = await _providers.ResolveUrlAsync(provider.Id, req.Path.Value ?? string.Empty, ct).ConfigureAwait(false);
+            var url = await _providers.ResolveUrlAsync(provider.Id, RouteAliases.Canonical(req.Path.Value ?? string.Empty), ct).ConfigureAwait(false);
             if (url is null)
             {
                 await WriteErrorAsync(res, StatusCodes.Status404NotFound, "Route mapping not found for provider.", ct).ConfigureAwait(false);
@@ -63,6 +67,21 @@ namespace SZA.AI.Proxy.Providers
 
                     body["model"] = model.RemoteName;
                 }
+
+                if (model is null || !model.SupportsVision)
+                {
+                    if (!string.IsNullOrWhiteSpace(provider.VisionModel))
+                    {
+                        var visionModel = await _models.FindAsync(provider.Id, provider.VisionModel, ct).ConfigureAwait(false);
+                        if (visionModel is not null)
+                            await _imageDescriber.ReplaceImagesAsync(body, provider, visionModel, ct).ConfigureAwait(false);
+                    }
+                }
+
+                // Configured temperature is only a default: a value sent by the client wins.
+                var temperature = model?.Temperature ?? provider.Temperature;
+                if (temperature is not null && body["temperature"] is null)
+                    body["temperature"] = temperature;
             }
 
             using var upstreamReq = new HttpRequestMessage(HttpMethod.Post, url)
@@ -90,7 +109,8 @@ namespace SZA.AI.Proxy.Providers
             {
                 if (!upstreamRes.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("Provider {ProviderId} returned {StatusCode}", provider.Id, (int)upstreamRes.StatusCode);
+                    var errorBody = await upstreamRes.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                    _logger.LogWarning("Provider {ProviderId} returned {StatusCode}: {Body}", provider.Id, (int)upstreamRes.StatusCode, errorBody);
                     await WriteErrorAsync(res, StatusCodes.Status502BadGateway,
                         $"Provider returned status {(int)upstreamRes.StatusCode}.", ct).ConfigureAwait(false);
                     return;
@@ -110,6 +130,19 @@ namespace SZA.AI.Proxy.Providers
                     return;
                 }
 
+                if (req.Path.StartsWithSegments("/v1"))
+                {
+                    res.ContentType = "text/event-stream";
+                    var buffer = new byte[8192];
+                    int read;
+                    while ((read = await upstreamBody.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+                    {
+                        await res.Body.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                        await res.Body.FlushAsync(ct).ConfigureAwait(false);
+                    }
+                    return;
+                }
+
                 // Provider SSE -> client NDJSON, one chunk at a time.
                 res.ContentType = "application/x-ndjson";
 
@@ -119,6 +152,50 @@ namespace SZA.AI.Proxy.Providers
                     await res.Body.FlushAsync(ct).ConfigureAwait(false);
                 }
             }
+        }
+
+        public async Task<IReadOnlyList<string>?> ListModelsAsync(ProviderConfig provider, CancellationToken ct = default)
+        {
+            var url = await _providers.ResolveUrlAsync(provider.Id, "/api/tags", ct).ConfigureAwait(false);
+            if (url is null) return null;
+
+            using var upstreamReq = new HttpRequestMessage(HttpMethod.Get, url);
+            await AddAuthenticationAsync(upstreamReq, provider, ct).ConfigureAwait(false);
+
+            var client = _httpClientFactory.CreateClient("provider");
+            using var upstreamRes = await client.SendAsync(upstreamReq, ct).ConfigureAwait(false);
+            upstreamRes.EnsureSuccessStatusCode();
+
+            await using var stream = await upstreamRes.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            var root = await JsonNode.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
+
+            return ParseModelNames(root);
+        }
+
+        // Supports OpenAI style ({ "data": [{ "id" }] }), Ollama style ({ "models": [{ "name" }] }) and plain arrays.
+        private static List<string> ParseModelNames(JsonNode? root)
+        {
+            var items = root switch
+            {
+                JsonArray array => array,
+                JsonObject obj when obj["data"] is JsonArray data => data,
+                JsonObject obj when obj["models"] is JsonArray models => models,
+                _ => null
+            };
+
+            var names = new List<string>();
+            if (items is null) return names;
+
+            foreach (var item in items)
+            {
+                var name = item is JsonValue value && value.TryGetValue<string>(out var text)
+                    ? text
+                    : (item?["id"] ?? item?["name"] ?? item?["model"])?.GetValue<string>();
+
+                if (!string.IsNullOrWhiteSpace(name)) names.Add(name);
+            }
+
+            return names;
         }
 
         // 1) X-Provider header, 2) provider that owns the requested model, 3) first active provider.

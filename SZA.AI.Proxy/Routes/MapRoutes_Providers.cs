@@ -11,6 +11,11 @@ namespace SZA.AI.Proxy.Routes
                 .WithTags("Providers")
                 .MapEndpoint<Providers_EndPoint>()
                 .MapEndpoint<Models_EndPoint>();
+
+            app.MapGroup("/v1")
+                .WithTags("Providers OpenAI")
+                .MapEndpoint<Providers_EndPoint>()
+                .MapEndpoint<Models_EndPoint>();
         }
     }
 }

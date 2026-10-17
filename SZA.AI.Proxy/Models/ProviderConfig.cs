@@ -9,6 +9,11 @@ namespace SZA.AI.Proxy.Models
         public string? ApiKeyRef { get; set; }
         public string AuthHeader { get; set; } = "Authorization";
         public string AuthScheme { get; set; } = "Bearer";
+        public int? ContextLength { get; set; }
+        public int? MaxOutputTokens { get; set; }
+        public double? Temperature { get; set; }
+        public string? VisionModel { get; set; }
+        public string? VisionPrompt { get; set; }
         public Dictionary<string, string> Routes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     }
 }

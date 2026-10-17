@@ -1,4 +1,5 @@
 using System.Net.Http;
+using SZA.AI.Proxy.Models;
 
 namespace SZA.AI.Proxy.Providers
 {
@@ -6,5 +7,9 @@ namespace SZA.AI.Proxy.Providers
     public interface IProviderClient
     {
         Task ForwardAsync(HttpRequest req, HttpResponse res, CancellationToken ct = default);
+
+        // Lists model names exposed by the provider (via the provider's mapped "/api/tags" route).
+        // Returns null when the provider has no mapping for "/api/tags".
+        Task<IReadOnlyList<string>?> ListModelsAsync(ProviderConfig provider, CancellationToken ct = default);
     }
 }

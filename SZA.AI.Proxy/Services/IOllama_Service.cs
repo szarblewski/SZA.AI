@@ -4,5 +4,6 @@
     {
         Task StreamNdjsonToSseHandler(HttpRequest req, HttpResponse res, CancellationToken ct);
         Task<IResult> SimpleEchoJsonHandler(HttpRequest req);
+        Task<IResult> ShowModelAsync(HttpRequest req, CancellationToken ct);
     }
 }

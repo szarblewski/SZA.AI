@@ -82,7 +82,10 @@ namespace SZA.AI.Proxy.Configurations
             builder.Services.AddSingleton<IProvider_Registry, Provider_Registry>();
             builder.Services.AddSingleton<IModel_Registry, Model_Registry>();
             builder.Services.AddHttpClient("provider", c => c.Timeout = Timeout.InfiniteTimeSpan);
+            builder.Services.AddMemoryCache();
+            builder.Services.AddSingleton<IImage_Describer, Image_Describer>();
             builder.Services.AddScoped<IProviderClient, Provider_Client>();
+            builder.Services.AddScoped<IModel_Sync, Model_Sync>();
             builder.Services.AddScoped<IOllama_Service, Ollama_Service>();
         }
     }
