@@ -78,6 +78,11 @@ namespace SZA.AI.Proxy.EndPoints.Providers
                 provider.ApiKeyRef,
                 provider.AuthHeader,
                 provider.AuthScheme,
+                provider.ContextLength,
+                provider.MaxOutputTokens,
+                provider.Temperature,
+                provider.VisionModel,
+                provider.VisionPrompt,
                 provider.Routes,
                 HasApiKey = await secrets.ExistsAsync(KeyReference(provider), ct)
             };

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace SZA.AI.CLI;
 
@@ -10,6 +11,9 @@ internal sealed class ProviderInfo
     public string BaseUrl { get; set; } = string.Empty;
     public bool Active { get; set; }
     public bool HasApiKey { get; set; }
+    public int? ContextLength { get; set; }
+    public int? MaxOutputTokens { get; set; }
+    public double? Temperature { get; set; }
 }
 
 internal sealed class ModelInfo
@@ -85,6 +89,63 @@ internal sealed class ProxyApi : IDisposable
         }
 
         return models;
+    }
+
+    public async Task<JsonObject?> GetProviderAsync(string id, CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"api/providers/{Uri.EscapeDataString(id)}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        response.EnsureSuccessStatusCode();
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) as JsonObject;
+    }
+
+    public async Task CreateProviderAsync(JsonObject provider, CancellationToken ct = default)
+    {
+        using var response = await _http.PostAsJsonAsync("api/providers", provider, JsonOptions, ct);
+        await EnsureSuccessAsync(response, ct);
+    }
+
+    public async Task UpdateProviderAsync(JsonObject provider, CancellationToken ct = default)
+    {
+        using var response = await _http.PutAsJsonAsync("api/providers", provider, JsonOptions, ct);
+        await EnsureSuccessAsync(response, ct);
+    }
+
+    public async Task<bool> DeleteProviderAsync(string id, CancellationToken ct = default)
+    {
+        using var response = await _http.DeleteAsync($"api/providers/{Uri.EscapeDataString(id)}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return false;
+
+        await EnsureSuccessAsync(response, ct);
+        return true;
+    }
+
+    public async Task<bool> SetApiKeyAsync(string id, string apiKey, CancellationToken ct = default)
+    {
+        using var response = await _http.PutAsJsonAsync(
+            $"api/providers/{Uri.EscapeDataString(id)}/key",
+            new { apiKey },
+            JsonOptions,
+            ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return false;
+
+        await EnsureSuccessAsync(response, ct);
+        return true;
+    }
+
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var body = (await response.Content.ReadAsStringAsync(ct)).Trim('"', ' ', '\r', '\n');
+        throw new CliException(string.IsNullOrEmpty(body)
+            ? $"O proxy respondeu {(int)response.StatusCode}."
+            : $"O proxy respondeu {(int)response.StatusCode}: {body}");
     }
 
     public static async Task<bool> PingAsync(string baseUrl, TimeSpan timeout, CancellationToken ct = default)

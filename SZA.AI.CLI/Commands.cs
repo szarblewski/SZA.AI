@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using Spectre.Console;
 
@@ -298,85 +298,10 @@ internal static class Commands
         return 0;
     }
 
-    public static async Task<int> InteractiveAsync(
+    public static Task<int> InteractiveAsync(
         CliConfig config,
-        CancellationToken cancellationToken = default)
-    {
-        ConsoleUi.Banner();
-
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            var choice = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("[grey]O que você quer fazer?[/]")
-                    .PageSize(12)
-                    .AddChoices(
-                        "Iniciar com dashboard (foreground)",
-                        "Iniciar em segundo plano",
-                        "Status",
-                        "Providers",
-                        "Modelos",
-                        "Logs (últimas linhas)",
-                        "Abrir documentação",
-                        "Configuração",
-                        "Sair"));
-
-            try
-            {
-                switch (choice)
-                {
-                    case "Iniciar com dashboard (foreground)":
-                        await StartAsync(config, ResolvePort(config), detach: false, noBuild: false, cancellationToken);
-                        break;
-
-                    case "Iniciar em segundo plano":
-                        await StartAsync(config, ResolvePort(config), detach: true, noBuild: false, cancellationToken);
-                        break;
-
-                    case "Status":
-                        await StatusAsync(config, cancellationToken);
-                        break;
-
-                    case "Providers":
-                        await ProvidersAsync(config, cancellationToken);
-                        break;
-
-                    case "Modelos":
-                        await ModelsAsync(config, cancellationToken);
-                        break;
-
-                    case "Logs (últimas linhas)":
-                        await LogsAsync(config, 40, follow: false, cancellationToken);
-                        break;
-
-                    case "Abrir documentação":
-                        await OpenAsync(config, cancellationToken);
-                        break;
-
-                    case "Configuração":
-                        Config(config, null, null, reset: false, show: true);
-                        break;
-
-                    case "Sair":
-                        return 0;
-                }
-            }
-            catch (CliException ex)
-            {
-                ConsoleUi.Error(ex.Message);
-            }
-            catch (OperationCanceledException)
-            {
-                return 0;
-            }
-
-            AnsiConsole.WriteLine();
-            AnsiConsole.Write(new Rule().RuleStyle("grey"));
-            AnsiConsole.WriteLine();
-        }
-
-        return 0;
-    }
+        CancellationToken cancellationToken = default) =>
+        Interactive.InteractiveApp.RunAsync(config, cancellationToken);
 
     private static ProxyLocation RequireLocation(CliConfig config)
     {
@@ -399,7 +324,7 @@ internal static class Commands
         return url ?? throw new CliException("O proxy não está em execução. Inicie com `sza start --detach`.");
     }
 
-    private static async Task<string?> GetRunningUrlAsync(CliConfig config, CancellationToken cancellationToken)
+    internal static async Task<string?> GetRunningUrlAsync(CliConfig config, CancellationToken cancellationToken)
     {
         var state = ProxyState.Load();
         if (state is not null)
