@@ -8,32 +8,45 @@ internal static class ProviderCommands
     public static async Task<int> AddAsync(CliConfig config, CliArguments args, CancellationToken ct)
     {
         var id = args.Args[0];
-        if (args.Get("url") is null)
-            throw new CliException("A opção --url é obrigatória.");
-
         var proxyUrl = await Commands.RequireRunningUrlAsync(config, ct);
         using var api = new ProxyApi(proxyUrl);
 
         if (await api.GetProviderAsync(id, ct) is not null)
             throw new CliException($"O provider '{id}' já existe. Use `sza provider edit {id}`.");
 
+        var templateId = args.Get("template");
+        var template = await api.GetTemplateAsync(templateId ?? id, ct);
+        if (templateId is not null && template is null)
+            throw new CliException($"Template '{templateId}' não encontrado. Veja `sza template ls`.");
+
+        if (template is null && args.Get("url") is null)
+            throw new CliException("Informe --url ou --template (ou cadastre um template com o mesmo id).");
+
         var provider = new JsonObject
         {
             ["id"] = id,
             ["name"] = id,
+            ["apiKeyRef"] = $"{id}-Key",
             ["active"] = true,
+            ["routes"] = new JsonObject(),
         };
+
+        if (template is not null)
+        {
+            foreach (var property in new[] { "name", "baseUrl", "authHeader", "authScheme", "contextLength", "maxOutputTokens", "temperature", "routes" })
+            {
+                if (template[property] is { } value)
+                    provider[property] = value.DeepClone();
+            }
+
+            provider["name"] = id;
+        }
         ApplyOptions(provider, args);
 
         await api.CreateProviderAsync(provider, ct);
 
-        var key = args.Get("api-key");
-        if (!string.IsNullOrEmpty(key))
-            await api.SetApiKeyAsync(id, key, ct);
-
         ConsoleUi.Success($"Provider '{id}' cadastrado.");
-        if (string.IsNullOrEmpty(key))
-            ConsoleUi.Info($"Defina a chave com `sza provider set-key {id}`.");
+        ConsoleUi.Info($"Defina a chave com `sza provider set-key {id}`.");
 
         return 0;
     }
@@ -112,7 +125,7 @@ internal static class ProviderCommands
             ? Console.In.ReadLine()
             : AnsiConsole.Prompt(new TextPrompt<string>("API key:").Secret());
 
-    private static bool ApplyOptions(JsonObject provider, CliArguments args)
+    internal static bool ApplyOptions(JsonObject provider, CliArguments args)
     {
         var changed = false;
 
@@ -153,6 +166,18 @@ internal static class ProviderCommands
         if (args.Has("active")) Set("active", JsonValue.Create(true));
         if (args.Has("inactive")) Set("active", JsonValue.Create(false));
 
+        var removeRoutes = args.GetAll("remove-route");
+        if (removeRoutes.Count > 0)
+        {
+            var existing = provider["routes"] as JsonObject;
+            foreach (var route in removeRoutes)
+            {
+                if (existing is null || !existing.Remove(route.Trim()))
+                    throw new CliException($"Rota não encontrada: {route}");
+            }
+
+            changed = true;
+        }
         var routeArgs = args.GetAll("route");
         if (routeArgs.Count > 0)
         {

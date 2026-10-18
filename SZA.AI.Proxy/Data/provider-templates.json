@@ -1,0 +1,30 @@
+[
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "baseUrl": "https://api.deepseek.com",
+    "authHeader": "Authorization",
+    "authScheme": "Bearer",
+    "contextLength": 1000000,
+    "maxOutputTokens": 384000,
+    "temperature": 0.2,
+    "routes": {
+      "/api/chat": "/chat/completions",
+      "/api/tags": "/models",
+      "/api/show": "/show",
+      "/api/version": "/version",
+      "/api/ps": "/ps"
+    }
+  },
+  {
+    "id": "openai",
+    "name": "OpenAI",
+    "baseUrl": "https://api.openai.com/v1",
+    "authHeader": "Authorization",
+    "authScheme": "Bearer",
+    "routes": {
+      "/api/chat": "/chat/completions",
+      "/api/tags": "/models"
+    }
+  }
+]

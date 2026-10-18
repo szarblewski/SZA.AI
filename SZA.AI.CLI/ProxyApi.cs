@@ -189,6 +189,42 @@ internal sealed class ProxyApi : IDisposable
         return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) as JsonObject;
     }
 
+    public async Task<List<JsonObject>> GetTemplatesAsync(CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync("api/provider-templates", ct);
+        await EnsureSuccessAsync(response, ct);
+        return (JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) as JsonArray)?
+            .OfType<JsonObject>().ToList() ?? [];
+    }
+
+    public async Task<JsonObject?> GetTemplateAsync(string id, CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"api/provider-templates/{Uri.EscapeDataString(id)}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessAsync(response, ct);
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) as JsonObject;
+    }
+
+    public async Task SaveTemplateAsync(JsonObject template, bool update, CancellationToken ct = default)
+    {
+        using var response = update
+            ? await _http.PutAsJsonAsync("api/provider-templates", template, JsonOptions, ct)
+            : await _http.PostAsJsonAsync("api/provider-templates", template, JsonOptions, ct);
+        await EnsureSuccessAsync(response, ct);
+    }
+
+    public async Task<bool> DeleteTemplateAsync(string id, CancellationToken ct = default)
+    {
+        using var response = await _http.DeleteAsync($"api/provider-templates/{Uri.EscapeDataString(id)}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return false;
+
+        await EnsureSuccessAsync(response, ct);
+        return true;
+    }
+
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.IsSuccessStatusCode)

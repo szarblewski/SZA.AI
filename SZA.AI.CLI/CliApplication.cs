@@ -11,6 +11,7 @@ internal static class CliApplication
         ["proxy"] = new() { ["start"] = 0, ["stop"] = 0, ["status"] = 0, ["logs"] = 0, ["open"] = 0 },
         ["provider"] = new() { ["ls"] = 0, ["add"] = 1, ["edit"] = 1, ["rm"] = 1, ["set-key"] = 1, ["rm-key"] = 1 },
         ["model"] = new() { ["ls"] = 0, ["add"] = 2, ["edit"] = 2, ["rm"] = 2, ["import"] = 1 },
+        ["template"] = new() { ["ls"] = 0, ["add"] = 1, ["edit"] = 1, ["rm"] = 1 },
         ["config"] = new() { ["show"] = 0, ["set"] = 0, ["reset"] = 0 },
     };
 
@@ -19,12 +20,12 @@ internal static class CliApplication
     private static readonly HashSet<string> ValuedOptions = new(StringComparer.OrdinalIgnoreCase)
     {
         "port", "proxy", "lines", "path", "url", "name", "api-key", "auth-header", "auth-scheme",
-        "context-length", "max-output", "temperature", "vision-model", "vision-prompt", "route", "remote",
+        "context-length", "max-output", "temperature", "vision-model", "vision-prompt", "route", "remove-route", "remote", "template",
     };
 
     private static readonly HashSet<string> FlagOptions = new(StringComparer.OrdinalIgnoreCase)
     {
-        "help", "version", "follow", "detach", "no-build", "verbose",
+        "help", "version", "follow", "detach", "no-build", "reset-data", "verbose",
         "active", "inactive", "vision", "no-vision",
     };
 
@@ -74,6 +75,7 @@ internal static class CliApplication
                         options.GetInt("port", 0, 65535) ?? Commands.ResolvePort(config),
                         options.Has("detach"),
                         options.Has("no-build"),
+                        options.Has("reset-data"),
                         CancellationToken.None);
 
                 case ("proxy", "stop"):
@@ -109,6 +111,18 @@ internal static class CliApplication
 
                 case ("provider", "rm-key"):
                     return await ProviderCommands.RemoveKeyAsync(config, options, CancellationToken.None);
+
+                case ("template", "ls"):
+                    return await TemplateCommands.ListAsync(config, CancellationToken.None);
+
+                case ("template", "add"):
+                    return await TemplateCommands.AddAsync(config, options, CancellationToken.None);
+
+                case ("template", "edit"):
+                    return await TemplateCommands.EditAsync(config, options, CancellationToken.None);
+
+                case ("template", "rm"):
+                    return await TemplateCommands.RemoveAsync(config, options, CancellationToken.None);
 
                 case ("model", "ls"):
                     return await Commands.ModelsAsync(config, CancellationToken.None);
@@ -299,6 +313,7 @@ internal static class CliApplication
         AnsiConsole.MarkupLine("[bold]Comandos de gerenciamento:[/]");
         AnsiConsole.MarkupLine("  [green]proxy[/]       Inicia, para e monitora o proxy");
         AnsiConsole.MarkupLine("  [green]provider[/]    Cadastra, edita e remove providers e suas chaves");
+        AnsiConsole.MarkupLine("  [green]template[/]    Mantém os templates de provider (rotas e padrões)");
         AnsiConsole.MarkupLine("  [green]model[/]       Cadastra, edita, remove e importa modelos");
         AnsiConsole.MarkupLine("  [green]config[/]      Mostra e altera a configuração do CLI");
         AnsiConsole.WriteLine();
@@ -339,6 +354,7 @@ internal static class CliApplication
                 AnsiConsole.MarkupLine("  [grey]--port <n>[/]     Porta do proxy (0 = porta livre) [[start]]");
                 AnsiConsole.MarkupLine("  [grey]-d, --detach[/]   Inicia em segundo plano [[start]]");
                 AnsiConsole.MarkupLine("  [grey]--no-build[/]     Não compila o proxy antes de iniciar [[start]]");
+                AnsiConsole.MarkupLine("  [grey]--reset-data[/]   Apaga providers, modelos e chaves salvos e recomeça em branco [[start]]");
                 AnsiConsole.MarkupLine("  [grey]--lines <n>[/]    Linhas exibidas (padrão: 40) [[logs]]");
                 AnsiConsole.MarkupLine("  [grey]-f, --follow[/]   Acompanha novos logs [[logs]]");
                 break;
@@ -353,18 +369,38 @@ internal static class CliApplication
                 AnsiConsole.MarkupLine("  [green]rm-key <id>[/]       Remove a API key");
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine("[bold]Opções de add/edit:[/]");
-                AnsiConsole.MarkupLine("  [grey]--url <url>[/]            Base URL do provider");
+                AnsiConsole.MarkupLine("  [grey]--url <url>[/]            Base URL do provider (ou use --template)");
+                AnsiConsole.MarkupLine("  [grey]--template <id>[/]        Template com rotas e padrões (padrão: template com o mesmo id)");
                 AnsiConsole.MarkupLine("  [grey]--name <nome>[/]          Nome de exibição");
-                AnsiConsole.MarkupLine("  [grey]--api-key <chave>[/]      Define a API key");
                 AnsiConsole.MarkupLine("  [grey]--auth-header <h>[/]      Cabeçalho de autenticação (padrão: Authorization)");
                 AnsiConsole.MarkupLine("  [grey]--auth-scheme <s>[/]      Esquema de autenticação (padrão: Bearer)");
+                AnsiConsole.MarkupLine("  [grey]--context-length <n>[/]   Tamanho de contexto (padrão: 1000000)");
+                AnsiConsole.MarkupLine("  [grey]--max-output <n>[/]       Máximo de tokens de saída (padrão: 384000)");
+                AnsiConsole.MarkupLine("  [grey]--temperature <t>[/]      Temperatura de 0 a 2 (padrão: 0.2)");
+                AnsiConsole.MarkupLine("  [grey]--vision-model <m>[/]     Modelo de visão (opcional, vazio por padrão)");
+                AnsiConsole.MarkupLine("  [grey]--vision-prompt <p>[/]    Prompt de visão (opcional, vazio por padrão)");
+                AnsiConsole.MarkupLine("  [grey]--route <rota=destino>[/] Mapeia uma rota (repetível)");
+                AnsiConsole.MarkupLine("  [grey]--remove-route <rota>[/]  Remove uma rota (repetível)");
+                AnsiConsole.MarkupLine("  [grey]--active | --inactive[/]  Ativa ou desativa (padrão: --active)");
+                break;
+
+            case "template":
+                AnsiConsole.MarkupLine("[bold]Comandos:[/]");
+                AnsiConsole.MarkupLine("  [green]ls[/]               Lista os templates");
+                AnsiConsole.MarkupLine("  [green]add <id>[/]         Cadastra um template (exige --url)");
+                AnsiConsole.MarkupLine("  [green]edit <id>[/]        Altera um template (--route sobrescreve/adiciona rotas)");
+                AnsiConsole.MarkupLine("  [green]rm <id>[/]          Remove o template");
+                AnsiConsole.WriteLine();
+                AnsiConsole.MarkupLine("[bold]Opções de add/edit:[/]");
+                AnsiConsole.MarkupLine("  [grey]--url <url>[/]            Base URL");
+                AnsiConsole.MarkupLine("  [grey]--name <nome>[/]          Nome de exibição");
+                AnsiConsole.MarkupLine("  [grey]--auth-header <h>[/]      Cabeçalho de autenticação");
+                AnsiConsole.MarkupLine("  [grey]--auth-scheme <s>[/]      Esquema de autenticação");
                 AnsiConsole.MarkupLine("  [grey]--context-length <n>[/]   Tamanho de contexto");
                 AnsiConsole.MarkupLine("  [grey]--max-output <n>[/]       Máximo de tokens de saída");
                 AnsiConsole.MarkupLine("  [grey]--temperature <t>[/]      Temperatura (0 a 2)");
-                AnsiConsole.MarkupLine("  [grey]--vision-model <m>[/]     Modelo de visão");
-                AnsiConsole.MarkupLine("  [grey]--vision-prompt <p>[/]    Prompt de visão");
                 AnsiConsole.MarkupLine("  [grey]--route <rota=destino>[/] Mapeia uma rota (repetível)");
-                AnsiConsole.MarkupLine("  [grey]--active | --inactive[/]  Ativa ou desativa");
+                AnsiConsole.MarkupLine("  [grey]--remove-route <rota>[/]  Remove uma rota (repetível)");
                 break;
 
             case "model":

@@ -53,9 +53,12 @@ internal static class InstallCommands
         if (OperatingSystem.IsWindows() && RemoveFromUserPath(target))
             ConsoleUi.Success("Diretório removido do PATH do usuário.");
 
+        var removedTool = UninstallDotnetTool();
+
         if (!Directory.Exists(target))
         {
-            ConsoleUi.Info($"Nada para remover em {target}.");
+            if (!removedTool)
+                ConsoleUi.Info($"Nada para remover em {target}.");
             return 0;
         }
 
@@ -87,6 +90,26 @@ internal static class InstallCommands
         return 0;
     }
 
+    private static bool UninstallDotnetTool()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        var running = AppContext.BaseDirectory;
+        var storeMarker = Path.Combine(".dotnet", "tools", ".store") + Path.DirectorySeparatorChar;
+        if (!running.Contains(storeMarker, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // O processo atual mantém os arquivos da ferramenta em uso; a remoção roda depois que ele encerrar.
+        var command = "/c ping -n 3 127.0.0.1 >nul & dotnet tool uninstall --global SZA.AI.CLI";
+        Process.Start(new ProcessStartInfo("cmd.exe", command)
+        {
+            CreateNoWindow = true,
+            UseShellExecute = false,
+        });
+        ConsoleUi.Success("Desinstalação da ferramenta global do dotnet (SZA.AI.CLI) agendada.");
+        return true;
+    }
     private static StringComparison PathComparison =>
         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection;
 using Serilog;
 using SZA.AI.Proxy.Providers;
 using SZA.AI.Proxy.Services;
@@ -91,6 +91,7 @@ namespace SZA.AI.Proxy.Configurations
             builder.Services.AddSingleton<ISecret_Store, Secret_Store>();
             builder.Services.AddSingleton<IProvider_Registry, Provider_Registry>();
             builder.Services.AddSingleton<IModel_Registry, Model_Registry>();
+            builder.Services.AddSingleton<IProvider_Template_Registry, Provider_Template_Registry>();
             builder.Services.AddHttpClient("provider", c => c.Timeout = Timeout.InfiniteTimeSpan)
                             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
                             {

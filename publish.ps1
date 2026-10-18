@@ -95,6 +95,11 @@ Write-Host 'Publicando o proxy para embutir no pacote...' -ForegroundColor Cyan
 dotnet publish (Join-Path $PSScriptRoot 'SZA.AI.Proxy\SZA.AI.Proxy.csproj') --configuration $Configuration --output $bundleDir
 if ($LASTEXITCODE -ne 0) { throw "dotnet publish do proxy falhou ($LASTEXITCODE)." }
 
+# O pacote vai sem providers/modelos cadastrados; os templates (provider-templates.json) seguem no pacote.
+foreach ($name in 'providers.json', 'models.json') {
+	[System.IO.File]::WriteAllText((Join-Path $bundleDir "Data\$name"), '[]', $utf8NoBom)
+}
+
 Write-Host "Gerando $packageId $Version ($Configuration)..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $Output | Out-Null
 Remove-Item (Join-Path $Output "$packageId.$Version.nupkg") -Force -ErrorAction SilentlyContinue

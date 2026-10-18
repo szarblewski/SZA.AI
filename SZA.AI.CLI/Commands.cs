@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using Spectre.Console;
 
@@ -15,6 +15,7 @@ internal static class Commands
         int port,
         bool detach,
         bool noBuild,
+        bool resetData,
         CancellationToken cancellationToken)
     {
         var location = RequireLocation(config);
@@ -26,6 +27,8 @@ internal static class Commands
             ConsoleUi.Info("Use `sza proxy status`, `sza proxy logs --follow` ou `sza proxy stop`.");
             return 0;
         }
+
+        ProxyData.Ensure(location, resetData);
 
         ConsoleUi.Info($"Executável: {location.ExePath}");
 

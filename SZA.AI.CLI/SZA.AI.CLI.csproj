@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>sza</AssemblyName>
-    <Version>1.0.3</Version>
+    <Version>1.0.5</Version>
     <RootNamespace>SZA.AI.CLI</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sza</ToolCommandName>
@@ -26,7 +26,7 @@
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="..\LICENSE.txt" Pack="true" PackagePath="\" />
     <None Remove="proxy-bundle\**" />
-    <Content Include="proxy-bundle\**" Pack="true" PackagePath="tools/net10.0/any/proxy/%(RecursiveDir)" CopyToOutputDirectory="Never" />
+    <Content Include="proxy-bundle\**" Pack="true" PackagePath="tools/net10.0/any/proxy" CopyToOutputDirectory="Never" />
   </ItemGroup>
 
 </Project>
