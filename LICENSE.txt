@@ -1,0 +1,19 @@
+SZA.AI - Free Use License
+
+Copyright (c) 2025 szarblewski. All rights reserved.
+
+The software and its source code remain the exclusive property of the copyright holder.
+
+1. Grant of use. You are granted a free, non-exclusive, non-transferable, revocable license to install and use the software (binaries and tools distributed by the copyright holder), for personal or commercial purposes, at no cost.
+
+2. Restrictions. Without prior written permission from the copyright holder, you may not:
+   a) sell, sublicense, rent or charge for the software or access to it;
+   b) redistribute the software or its source code, in original or modified form, except through the official distribution channels of the copyright holder;
+   c) modify, create derivative works from, decompile or reverse engineer the software, except where applicable law expressly allows it;
+   d) remove or alter copyright notices.
+
+3. Ownership. This license does not transfer any ownership or intellectual property rights. All rights not expressly granted are reserved.
+
+4. No warranty. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE OF THE SOFTWARE.
+
+5. Termination. This license terminates automatically if you breach any of its terms.

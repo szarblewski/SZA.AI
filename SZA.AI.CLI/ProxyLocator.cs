@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
 
@@ -23,6 +23,11 @@ internal static class ProxyLocator
             if (File.Exists(project))
                 return FromProject(project);
         }
+
+        var bundledDirectory = Path.Combine(AppContext.BaseDirectory, "proxy");
+        var bundledExe = Path.Combine(bundledDirectory, ProxyAssemblyName);
+        if (File.Exists(bundledExe))
+            return new ProxyLocation(string.Empty, bundledExe, bundledDirectory);
 
         return null;
     }
@@ -58,7 +63,7 @@ internal static class ProxyLocator
     public static void Build(ProxyLocation location)
     {
         if (string.IsNullOrWhiteSpace(location.ProjectPath) || !File.Exists(location.ProjectPath))
-            throw new CliException("Não encontrei o projeto SZA.AI.Proxy para compilar. Informe o caminho com --proxy.");
+            throw new CliException("NÃ£o encontrei o projeto SZA.AI.Proxy para compilar. Informe o caminho com --proxy.");
 
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -77,7 +82,7 @@ internal static class ProxyLocator
         startInfo.ArgumentList.Add("minimal");
 
         using var process = Process.Start(startInfo)
-            ?? throw new CliException("Não foi possível iniciar o dotnet build.");
+            ?? throw new CliException("NÃ£o foi possÃ­vel iniciar o dotnet build.");
 
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
@@ -90,7 +95,7 @@ internal static class ProxyLocator
             throw new CliException($"Falha ao compilar o SZA.AI.Proxy.{Environment.NewLine}{output.Trim()}");
 
         if (!File.Exists(location.ExePath))
-            throw new CliException($"A compilação terminou, mas o executável não foi encontrado em {location.ExePath}.");
+            throw new CliException($"A compilaÃ§Ã£o terminou, mas o executÃ¡vel nÃ£o foi encontrado em {location.ExePath}.");
     }
 
     public static int ReadPortFromUrl(string? url)
@@ -217,7 +222,7 @@ internal static class ProxyLocator
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            // Ignora caminhos inválidos.
+            // Ignora caminhos invÃ¡lidos.
         }
     }
 

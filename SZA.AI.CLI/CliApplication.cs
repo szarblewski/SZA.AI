@@ -44,7 +44,8 @@ internal static class CliApplication
 
         if (options.Has("version") || group == "version")
         {
-            var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+            var informational = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            var version = informational?.Split('+')[0] ?? "1.0.0";
             AnsiConsole.MarkupLine($"sza {version}");
             return 0;
         }
