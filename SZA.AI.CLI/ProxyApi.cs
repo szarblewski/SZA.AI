@@ -137,6 +137,58 @@ internal sealed class ProxyApi : IDisposable
         return true;
     }
 
+    public async Task<bool> DeleteApiKeyAsync(string id, CancellationToken ct = default)
+    {
+        using var response = await _http.DeleteAsync($"api/providers/{Uri.EscapeDataString(id)}/key", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return false;
+
+        await EnsureSuccessAsync(response, ct);
+        return true;
+    }
+
+    public async Task<JsonArray?> GetProviderModelsAsync(string providerId, CancellationToken ct = default)
+    {
+        using var response = await _http.GetAsync($"api/providers/{Uri.EscapeDataString(providerId)}/models", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessAsync(response, ct);
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) as JsonArray;
+    }
+
+    public async Task SaveModelAsync(string providerId, JsonObject model, bool update, CancellationToken ct = default)
+    {
+        var uri = $"api/providers/{Uri.EscapeDataString(providerId)}/models";
+        using var response = update
+            ? await _http.PutAsJsonAsync(uri, model, JsonOptions, ct)
+            : await _http.PostAsJsonAsync(uri, model, JsonOptions, ct);
+        await EnsureSuccessAsync(response, ct);
+    }
+
+    public async Task<bool> DeleteModelAsync(string providerId, string localName, CancellationToken ct = default)
+    {
+        var escapedName = string.Join('/', localName.Split('/').Select(Uri.EscapeDataString));
+        using var response = await _http.DeleteAsync(
+            $"api/providers/{Uri.EscapeDataString(providerId)}/models/{escapedName}", ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return false;
+
+        await EnsureSuccessAsync(response, ct);
+        return true;
+    }
+
+    public async Task<JsonObject?> ImportModelsAsync(string providerId, CancellationToken ct = default)
+    {
+        using var response = await _http.PostAsync(
+            $"api/providers/{Uri.EscapeDataString(providerId)}/models/import", null, ct);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        await EnsureSuccessAsync(response, ct);
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)) as JsonObject;
+    }
+
     private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken ct)
     {
         if (response.IsSuccessStatusCode)

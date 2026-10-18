@@ -23,7 +23,7 @@ internal static class Commands
         if (runningUrl is not null)
         {
             ConsoleUi.Warning($"O proxy já está em execução em {runningUrl}.");
-            ConsoleUi.Info("Use `sza status`, `sza logs --follow` ou `sza stop`.");
+            ConsoleUi.Info("Use `sza proxy status`, `sza proxy logs --follow` ou `sza proxy stop`.");
             return 0;
         }
 
@@ -76,7 +76,7 @@ internal static class Commands
                     null,
                     null,
                     null,
-                    "Inicie com `sza start`."));
+                    "Inicie com `sza proxy start`."));
                 return 0;
             }
 
@@ -293,15 +293,10 @@ internal static class Commands
         AnsiConsole.Write(ConsoleUi.ConfigTable(config, ProxyLocator.Locate(config)));
 
         if (!changed && !show)
-            ConsoleUi.Info("Use --port <n> ou --proxy <caminho> para alterar, ou --reset para restaurar.");
+            ConsoleUi.Info("Use `sza config set --port <n>` ou `--proxy <caminho>` para alterar, ou `sza config reset` para restaurar.");
 
         return 0;
     }
-
-    public static Task<int> InteractiveAsync(
-        CliConfig config,
-        CancellationToken cancellationToken = default) =>
-        Interactive.InteractiveApp.RunAsync(config, cancellationToken);
 
     private static ProxyLocation RequireLocation(CliConfig config)
     {
@@ -309,7 +304,7 @@ internal static class Commands
         if (location is null)
         {
             throw new CliException(
-                "Não encontrei o projeto SZA.AI.Proxy. Rode o CLI de dentro do repositório ou use `sza config --proxy <caminho>`.");
+                "Não encontrei o projeto SZA.AI.Proxy. Rode o CLI de dentro do repositório ou use `sza config set --proxy <caminho>`.");
         }
 
         if (!Directory.Exists(location.WorkingDirectory))
@@ -318,10 +313,10 @@ internal static class Commands
         return location;
     }
 
-    private static async Task<string> RequireRunningUrlAsync(CliConfig config, CancellationToken cancellationToken)
+    internal static async Task<string> RequireRunningUrlAsync(CliConfig config, CancellationToken cancellationToken)
     {
         var url = await GetRunningUrlAsync(config, cancellationToken);
-        return url ?? throw new CliException("O proxy não está em execução. Inicie com `sza start --detach`.");
+        return url ?? throw new CliException("O proxy não está em execução. Inicie com `sza proxy start --detach`.");
     }
 
     internal static async Task<string?> GetRunningUrlAsync(CliConfig config, CancellationToken cancellationToken)

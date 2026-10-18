@@ -253,7 +253,7 @@ internal static class ProxyRunner
             null,
             null,
             null,
-            "Use `sza stop` para encerrar."));
+            "Use `sza proxy stop` para encerrar."));
         AnsiConsole.WriteLine();
         ConsoleUi.Info($"Log: {logFile}");
         return 0;
