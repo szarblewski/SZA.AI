@@ -98,7 +98,7 @@ namespace SZA.AI.Proxy.Providers
             {
                 upstreamRes = await client.SendAsync(upstreamReq, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex) when (ex is HttpRequestException or IOException || (ex is TaskCanceledException && !ct.IsCancellationRequested))
             {
                 _logger.LogError(ex, "Provider {ProviderId} request failed", provider.Id);
                 await WriteErrorAsync(res, StatusCodes.Status502BadGateway, "Provider request failed.", ct).ConfigureAwait(false);
@@ -106,6 +106,7 @@ namespace SZA.AI.Proxy.Providers
             }
 
             using (upstreamRes)
+            try
             {
                 if (!upstreamRes.IsSuccessStatusCode)
                 {
@@ -151,6 +152,11 @@ namespace SZA.AI.Proxy.Providers
                     await res.Body.WriteAsync(Encoding.UTF8.GetBytes(json + "\n"), ct).ConfigureAwait(false);
                     await res.Body.FlushAsync(ct).ConfigureAwait(false);
                 }
+            }
+            catch (Exception ex) when (ex is IOException or HttpRequestException)
+            {
+                // Upstream dropped mid-stream: headers are already sent, so just log and end the response.
+                _logger.LogWarning(ex, "Provider {ProviderId} stream interrupted", provider.Id);
             }
         }
 
@@ -245,6 +251,7 @@ namespace SZA.AI.Proxy.Providers
 
         private static async Task WriteErrorAsync(HttpResponse res, int statusCode, string message, CancellationToken ct)
         {
+            if (res.HasStarted) return;
             res.StatusCode = statusCode;
             res.ContentType = "application/json";
             await res.WriteAsJsonAsync(new { error = message }, ct).ConfigureAwait(false);

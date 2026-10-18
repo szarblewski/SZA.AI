@@ -75,9 +75,17 @@ namespace SZA.AI.Proxy.Services
                 return _cache;
             }
 
-            await using var stream = File.OpenRead(_filePath);
-            var loaded = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: ct).ConfigureAwait(false);
-            _cache = new Dictionary<string, string>(loaded ?? [], StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                await using var stream = File.OpenRead(_filePath);
+                var loaded = await JsonSerializer.DeserializeAsync<Dictionary<string, string>>(stream, cancellationToken: ct).ConfigureAwait(false);
+                _cache = new Dictionary<string, string>(loaded ?? [], StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex) when (ex is JsonException or IOException)
+            {
+                try { File.Copy(_filePath, _filePath + ".corrupt", overwrite: true); } catch { }
+                _cache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
             return _cache;
         }
 

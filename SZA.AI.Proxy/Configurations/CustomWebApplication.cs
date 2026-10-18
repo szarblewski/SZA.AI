@@ -21,6 +21,30 @@ namespace SZA.AI.Proxy.Configurations
 
             //app.UseHttpsRedirection();
 
+            // Last line of defense: no request exception may escape and bring the service down.
+            app.Use(async (context, next) =>
+            {
+                try
+                {
+                    await next(context).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+                {
+                    // Client disconnected.
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(ex, "Unhandled error on {Method} {Path}", context.Request.Method, context.Request.Path);
+                    if (!context.Response.HasStarted)
+                    {
+                        context.Response.Clear();
+                        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                        context.Response.ContentType = "application/json";
+                        await context.Response.WriteAsync("{\"error\":\"Internal proxy error.\"}").ConfigureAwait(false);
+                    }
+                }
+            });
+
             app.UseCors("AllowOrigin");
 
             

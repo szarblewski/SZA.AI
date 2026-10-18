@@ -25,8 +25,18 @@ namespace SZA.AI.Proxy.Configurations
             var builder = WebApplication.CreateBuilder(args);
 
             builder.Host.UseSerilog();
+            builder.Services.Configure<HostOptions>(o => o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 
             ConfigurePort(builder, args);
+
+            // Long/slow generations must not be cut by Kestrel's default data-rate and idle limits.
+            builder.WebHost.ConfigureKestrel(k =>
+            {
+                k.Limits.MinResponseDataRate = null;
+                k.Limits.MinRequestBodyDataRate = null;
+                k.Limits.KeepAliveTimeout = TimeSpan.FromHours(1);
+                k.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(2);
+            });
 
             builder.Services.AddCors(options =>
             {
@@ -81,7 +91,14 @@ namespace SZA.AI.Proxy.Configurations
             builder.Services.AddSingleton<ISecret_Store, Secret_Store>();
             builder.Services.AddSingleton<IProvider_Registry, Provider_Registry>();
             builder.Services.AddSingleton<IModel_Registry, Model_Registry>();
-            builder.Services.AddHttpClient("provider", c => c.Timeout = Timeout.InfiniteTimeSpan);
+            builder.Services.AddHttpClient("provider", c => c.Timeout = Timeout.InfiniteTimeSpan)
+                            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                            {
+                                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+                                ConnectTimeout = TimeSpan.FromSeconds(30),
+                                EnableMultipleHttp2Connections = true
+                            });
             builder.Services.AddMemoryCache();
             builder.Services.AddSingleton<IImage_Describer, Image_Describer>();
             builder.Services.AddScoped<IProviderClient, Provider_Client>();

@@ -88,9 +88,27 @@ namespace SZA.AI.Proxy.Services
                 return _cache;
             }
 
-            await using var stream = File.OpenRead(_filePath);
-            _cache = await JsonSerializer.DeserializeAsync<List<ProviderConfig>>(stream, JsonOptions, ct).ConfigureAwait(false)
-                     ?? new List<ProviderConfig>();
+            try
+
+            {
+
+                await using var stream = File.OpenRead(_filePath);
+
+                _cache = await JsonSerializer.DeserializeAsync<List<ProviderConfig>>(stream, JsonOptions, ct).ConfigureAwait(false) ?? new List<ProviderConfig>();
+
+            }
+
+            catch (Exception ex) when (ex is JsonException or IOException)
+
+            {
+
+                // Corrupted/locked file: keep a backup and continue with an empty list instead of failing every request.
+
+                try { File.Copy(_filePath, _filePath + ".corrupt", overwrite: true); } catch { }
+
+                _cache = new List<ProviderConfig>();
+
+            }
             return _cache;
         }
 
