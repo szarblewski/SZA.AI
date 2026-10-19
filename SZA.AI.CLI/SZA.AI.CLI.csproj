@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>sza</AssemblyName>
-    <Version>1.0.5</Version>
+    <Version>1.0.6</Version>
     <RootNamespace>SZA.AI.CLI</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sza</ToolCommandName>

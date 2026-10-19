@@ -8,7 +8,7 @@ internal static class CliApplication
     // grupo -> subcomando -> quantidade de argumentos posicionais
     private static readonly Dictionary<string, Dictionary<string, int>> Groups = new(StringComparer.Ordinal)
     {
-        ["proxy"] = new() { ["start"] = 0, ["stop"] = 0, ["status"] = 0, ["logs"] = 0, ["open"] = 0 },
+        ["proxy"] = new() { ["start"] = 0, ["stop"] = 0, ["status"] = 0, ["logs"] = 0, ["open"] = 0, ["autostart"] = 1 },
         ["provider"] = new() { ["ls"] = 0, ["add"] = 1, ["edit"] = 1, ["rm"] = 1, ["set-key"] = 1, ["rm-key"] = 1 },
         ["model"] = new() { ["ls"] = 0, ["add"] = 2, ["edit"] = 2, ["rm"] = 2, ["import"] = 1 },
         ["template"] = new() { ["ls"] = 0, ["add"] = 1, ["edit"] = 1, ["rm"] = 1 },
@@ -90,6 +90,9 @@ internal static class CliApplication
                         options.GetInt("lines", 1, 10_000) ?? 40,
                         options.Has("follow"),
                         CancellationToken.None);
+
+                case ("proxy", "autostart"):
+                    return AutostartCommands.Run(options.Args.FirstOrDefault());
 
                 case ("proxy", "open"):
                     return await Commands.OpenAsync(config, CancellationToken.None);
@@ -349,6 +352,7 @@ internal static class CliApplication
                 AnsiConsole.MarkupLine("  [green]status[/]   Mostra estado, URL, PID, versão e contagens");
                 AnsiConsole.MarkupLine("  [green]logs[/]     Mostra os logs do proxy");
                 AnsiConsole.MarkupLine("  [green]open[/]     Abre a documentação Scalar no navegador");
+                AnsiConsole.MarkupLine("  [green]autostart on|off|status[/]  Inicia o proxy junto com o Windows");
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine("[bold]Opções:[/]");
                 AnsiConsole.MarkupLine("  [grey]--port <n>[/]     Porta do proxy (0 = porta livre) [[start]]");
