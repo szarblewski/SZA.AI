@@ -8,6 +8,8 @@ Tipos de mudança: **Adicionado**, **Alterado**, **Corrigido**, **Removido**, **
 
 ## [Não lançado]
 
+## [1.0.7] - 2026-10-19
+
 ## [1.0.6] - 2026-10-19
 
 ## [1.0.5] - 2026-10-18
@@ -46,7 +48,8 @@ Tipos de mudança: **Adicionado**, **Alterado**, **Corrigido**, **Removido**, **
 
 - Modo interativo (Terminal.Gui) e os comandos planos (`sza start`, `sza status` etc.), substituídos pelos comandos agrupados.
 
-[Não lançado]: https://github.com/szarblewski/SZA.AI/compare/v1.0.6...HEAD
+[Não lançado]: https://github.com/szarblewski/SZA.AI/compare/v1.0.7...HEAD
+[1.0.7]: https://github.com/szarblewski/SZA.AI/compare/v1.0.6...v1.0.7
 [1.0.6]: https://github.com/szarblewski/SZA.AI/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/szarblewski/SZA.AI/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/szarblewski/SZA.AI/compare/v1.0.3...v1.0.4
