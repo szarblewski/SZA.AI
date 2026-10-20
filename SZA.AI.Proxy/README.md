@@ -37,6 +37,18 @@ Porta `0` escolhe uma porta livre. Os endereços em uso são gravados em `Data/r
 
 O serviço permanece de pé: exceções não tratadas são registradas e o host é recriado após 3 segundos. Erros em requisições devolvem `500` sem derrubar o processo.
 
+### Streams longos e keep-alive
+
+Gerações longas não têm timeout total: o `HttpClient` do provider usa `Timeout.InfiniteTimeSpan` e o Kestrel está configurado sem limite de taxa de resposta, com `KeepAliveTimeout` de 1 hora.
+
+Enquanto o provider fica em silêncio (por exemplo, um modelo de raciocínio que demora a emitir o primeiro token), o proxy envia comentários SSE (`: keep-alive`) no stream de `/v1` para que os clientes não derrubem a conexão por ociosidade — era o que fazia o Copilot CLI ficar “aguardando resposta” quando o provider demorava.
+
+| Configuração | Padrão | Descrição |
+| --- | --- | --- |
+| `Proxy:StreamHeartbeatSeconds` | `15` | Intervalo do keep-alive SSE durante o silêncio do provider. `0` desativa. |
+
+Também pode ser definido pela variável de ambiente `Proxy__StreamHeartbeatSeconds` (ou `SZA_AI_PROXY_STREAMHEARTBEATSECONDS`).
+
 ## Endpoints
 
 | Grupo | Rota base | Descrição |

@@ -27,7 +27,10 @@ namespace SZA.AI.Proxy.Configurations
             builder.Host.UseSerilog();
             builder.Services.Configure<HostOptions>(o => o.BackgroundServiceExceptionBehavior = BackgroundServiceExceptionBehavior.Ignore);
 
-            ConfigurePort(builder, args);
+            var proxyOptions = ProxyOptions.Resolve(args, builder.Configuration);
+            builder.Services.AddSingleton(proxyOptions);
+
+            ConfigurePort(builder, proxyOptions);
 
             // Long/slow generations must not be cut by Kestrel's default data-rate and idle limits.
             builder.WebHost.ConfigureKestrel(k =>
@@ -68,13 +71,11 @@ namespace SZA.AI.Proxy.Configurations
             return builder;
         }
 
-        private static void ConfigurePort(WebApplicationBuilder builder, string[] args)
+        private static void ConfigurePort(WebApplicationBuilder builder, ProxyOptions options)
         {
             // ASPNETCORE_URLS / --urls keep priority when explicitly defined.
             if (!string.IsNullOrWhiteSpace(builder.Configuration[WebHostDefaults.ServerUrlsKey]))
                 return;
-
-            var options = ProxyOptions.Resolve(args, builder.Configuration);
 
             // Kestrel does not accept port 0 with "localhost".
             var host = options.Port == 0 ? "127.0.0.1" : "localhost";

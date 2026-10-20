@@ -4,8 +4,12 @@ namespace SZA.AI.Proxy.Configurations
     {
         public const int DefaultPort = 11434;
         public const string PortEnvironmentVariable = "SZA_AI_PORT";
+        public const int DefaultStreamHeartbeatSeconds = 15;
 
         public int Port { get; set; } = DefaultPort;
+
+        // SSE comment sent while the provider is silent. 0 disables it.
+        public int StreamHeartbeatSeconds { get; set; } = DefaultStreamHeartbeatSeconds;
 
         // Priority: --port argument, SZA_AI_PORT, Proxy:Port, default (11434). Port 0 = random free port.
         public static ProxyOptions Resolve(string[] args, IConfiguration configuration)
@@ -21,6 +25,9 @@ namespace SZA.AI.Proxy.Configurations
 
             if (options.Port < 0 || options.Port > 65535)
                 options.Port = DefaultPort;
+
+            if (options.StreamHeartbeatSeconds < 0)
+                options.StreamHeartbeatSeconds = DefaultStreamHeartbeatSeconds;
 
             return options;
         }

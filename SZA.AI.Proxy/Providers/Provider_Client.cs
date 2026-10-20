@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
+using SZA.AI.Proxy.Configurations;
 using SZA.AI.Proxy.Converters;
 using SZA.AI.Proxy.Helpers;
 using SZA.AI.Proxy.Models;
@@ -12,11 +13,15 @@ namespace SZA.AI.Proxy.Providers
     {
         private const string ProviderHeader = "X-Provider";
 
+        // SSE comment line: ignored by every SSE client, but enough traffic to reset their idle timeouts.
+        private static readonly byte[] SseKeepAlive = ": keep-alive\n\n"u8.ToArray();
+
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IProvider_Registry _providers;
         private readonly IModel_Registry _models;
         private readonly ISecret_Store _secrets;
         private readonly IImage_Describer _imageDescriber;
+        private readonly ProxyOptions _options;
         private readonly ILogger<Provider_Client> _logger;
 
         public Provider_Client(
@@ -25,6 +30,7 @@ namespace SZA.AI.Proxy.Providers
             IModel_Registry models,
             ISecret_Store secrets,
             IImage_Describer imageDescriber,
+            ProxyOptions options,
             ILogger<Provider_Client> logger)
         {
             _httpClientFactory = httpClientFactory;
@@ -32,6 +38,7 @@ namespace SZA.AI.Proxy.Providers
             _models = models;
             _secrets = secrets;
             _imageDescriber = imageDescriber;
+            _options = options;
             _logger = logger;
         }
 
@@ -134,13 +141,7 @@ namespace SZA.AI.Proxy.Providers
                 if (req.Path.StartsWithSegments("/v1"))
                 {
                     res.ContentType = "text/event-stream";
-                    var buffer = new byte[8192];
-                    int read;
-                    while ((read = await upstreamBody.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
-                    {
-                        await res.Body.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                        await res.Body.FlushAsync(ct).ConfigureAwait(false);
-                    }
+                    await CopySseAsync(upstreamBody, res, provider.Id, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -157,6 +158,67 @@ namespace SZA.AI.Proxy.Providers
             {
                 // Upstream dropped mid-stream: headers are already sent, so just log and end the response.
                 _logger.LogWarning(ex, "Provider {ProviderId} stream interrupted", provider.Id);
+            }
+        }
+
+        /// <summary>
+        /// Copies the provider SSE stream to the client. There is no overall timeout for generations,
+        /// so while the provider stays silent a keep-alive comment is sent to keep client-side idle
+        /// timeouts (Copilot CLI, undici, proxies) from dropping the connection.
+        /// </summary>
+        private async Task CopySseAsync(Stream upstream, HttpResponse res, string providerId, CancellationToken ct)
+        {
+            var interval = TimeSpan.FromSeconds(_options.StreamHeartbeatSeconds);
+            var keepAlive = interval > TimeSpan.Zero;
+
+            var buffer = new byte[8192];
+            Task<int>? pendingRead = null;
+            var heartbeats = 0;
+            var silence = TimeSpan.Zero;
+            var silentSince = System.Diagnostics.Stopwatch.GetTimestamp();
+
+            try
+            {
+                while (true)
+                {
+                    pendingRead ??= upstream.ReadAsync(buffer, ct).AsTask();
+
+                    if (keepAlive && await Task.WhenAny(pendingRead, Task.Delay(interval, ct)).ConfigureAwait(false) != pendingRead)
+                    {
+                        // The delay only loses the race on cancellation; let it propagate instead of faking a heartbeat.
+                        ct.ThrowIfCancellationRequested();
+
+                        if (heartbeats == 0)
+                            _logger.LogInformation("Provider {ProviderId} stream silent for {Seconds:0}s, sending keep-alives", providerId, interval.TotalSeconds);
+
+                        await res.Body.WriteAsync(SseKeepAlive, ct).ConfigureAwait(false);
+                        await res.Body.FlushAsync(ct).ConfigureAwait(false);
+                        heartbeats++;
+                        continue;
+                    }
+
+                    var read = await pendingRead.ConfigureAwait(false);
+                    pendingRead = null;
+
+                    if (read <= 0) break;
+
+                    if (heartbeats > 0)
+                        silence += System.Diagnostics.Stopwatch.GetElapsedTime(silentSince);
+
+                    silentSince = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                    await res.Body.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                    await res.Body.FlushAsync(ct).ConfigureAwait(false);
+                }
+
+                if (heartbeats > 0)
+                    _logger.LogInformation("Provider {ProviderId} stream kept alive {Heartbeats} time(s) over {Silence:0.0}s of silence", providerId, heartbeats, silence.TotalSeconds);
+            }
+            finally
+            {
+                // The read is abandoned when the loop exits early; observe it so it does not surface as unobserved.
+                if (pendingRead is { IsCompleted: false })
+                    _ = pendingRead.ContinueWith(t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             }
         }
 
